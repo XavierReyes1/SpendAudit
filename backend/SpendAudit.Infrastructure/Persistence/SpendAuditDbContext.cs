@@ -34,6 +34,20 @@ public class SpendAuditDbContext : DbContext, IUnitOfWork
     {
         base.OnModelCreating(mb);
 
+        // Relaciones explícitas de políticas de gastos
+
+        mb.Entity<PoliticaGasto>()
+            .HasMany(p => p.Topes)
+            .WithOne()
+            .HasForeignKey(t => t.PoliticaId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        mb.Entity<PoliticaGasto>()
+            .HasMany(p => p.Terminos)
+            .WithOne()
+            .HasForeignKey(t => t.PoliticaId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // Llaves generadas en aplicación (Guid.NewGuid())
         foreach (var entity in mb.Model.GetEntityTypes())
         {
