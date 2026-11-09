@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SpendAudit.API/SpendAudit.API.csproj" />
+  <Project Path="SpendAudit.Application/SpendAudit.Application.csproj" />
+  <Project Path="SpendAudit.Domain/SpendAudit.Domain.csproj" />
+  <Project Path="SpendAudit.Infrastructure/SpendAudit.Infrastructure.csproj" />
+</Solution>
