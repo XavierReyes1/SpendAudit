@@ -1,4 +1,5 @@
 using SpendAudit.Domain.Enums;
+
 namespace SpendAudit.Domain.Entities;
 
 /// <summary>El tenant. Es la única tabla sin EmpresaId.</summary>
