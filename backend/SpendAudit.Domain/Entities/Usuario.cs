@@ -1,8 +1,7 @@
-using SpendAudit.Domain.Enums;
 using SpendAudit.Domain.Common;
+using SpendAudit.Domain.Enums;
 
 namespace SpendAudit.Domain.Entities;
-
 
 public class Usuario : IEmpresaScoped
 {
