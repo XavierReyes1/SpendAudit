@@ -1,7 +1,20 @@
-using SpendAudit.Domain.Enums;
 using SpendAudit.Domain.Common;
+using SpendAudit.Domain.Enums;
 
 namespace SpendAudit.Domain.Entities;
+
+public class LoteLiquidacion : IEmpresaScoped
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid EmpresaId { get; set; }
+    public Guid UsuarioId { get; set; }
+    public string Descripcion { get; set; } = string.Empty;
+    public DateTime FechaLiquidacion { get; set; } = DateTime.UtcNow;
+
+    public Usuario? Usuario { get; set; }
+    public List<Comprobante> Comprobantes { get; set; } = new();
+}
+
 public class Comprobante : IEmpresaScoped
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -31,4 +44,24 @@ public class Comprobante : IEmpresaScoped
     public LoteLiquidacion? Lote { get; set; }
     public List<DetalleItem> Items { get; set; } = new();
     public List<HallazgoAuditoria> Hallazgos { get; set; } = new();
+}
+
+public class DetalleItem : IEmpresaScoped
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid EmpresaId { get; set; }
+    public Guid ComprobanteId { get; set; }
+    public string Descripcion { get; set; } = string.Empty;
+    public decimal Subtotal { get; set; }
+    public bool EsRestringido { get; set; }
+}
+
+public class HallazgoAuditoria : IEmpresaScoped
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid EmpresaId { get; set; }
+    public Guid ComprobanteId { get; set; }
+    public ReglaAuditoria Regla { get; set; }
+    public SeveridadHallazgo Severidad { get; set; }
+    public string Detalle { get; set; } = string.Empty;
 }
