@@ -19,6 +19,11 @@ public class CreateBorradorRequestDto : IDatosComprobanteDto
 {
     public string ArchivoNombre { get; set; } = string.Empty;
     public long ArchivoTamano { get; set; }
+    /// <summary>
+    /// Solo para fotos: texto que el navegador reconoció con OCR (Tesseract.js). En PDFs se ignora porque
+    /// el servidor extrae el texto por su cuenta.
+    /// </summary>
+    public string? TextoOcr { get; set; }
     public string? NumeroFactura { get; set; }
     public string? CAI { get; set; }
     public string? ProveedorRTN { get; set; }
