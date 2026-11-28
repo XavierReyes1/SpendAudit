@@ -1,6 +1,6 @@
 using FluentValidation;
-using SpendAudit.Application.Common.Models;
 using SpendAudit.Application.Features.Usuarios.DTOs;
+using SpendAudit.Domain.Enums;
 
 namespace SpendAudit.Application.Features.Usuarios.Validators;
 
@@ -10,18 +10,16 @@ public class CreatePuestoRequestValidator : AbstractValidator<CreatePuestoReques
     {
         RuleFor(x => x.Nombre)
             .NotEmpty().WithMessage("El nombre del puesto es obligatorio.")
-            .MaximumLength(100).WithMessage("El nombre del puesto no puede exceder 100 caracteres.");
+            .MaximumLength(100).WithMessage("El nombre no puede exceder 100 caracteres.");
     }
 }
 
 public class CreateUsuarioRequestValidator : AbstractValidator<CreateUsuarioRequestDto>
 {
-    private static readonly string[] RolesPermitidos = { Roles.Admin, Roles.Empleado, Roles.Auditor };
-
     public CreateUsuarioRequestValidator()
     {
         RuleFor(x => x.NombreCompleto)
-            .NotEmpty().WithMessage("El nombre completo es obligatorio.")
+            .NotEmpty().WithMessage("El nombre es obligatorio.")
             .MaximumLength(150).WithMessage("El nombre no puede exceder 150 caracteres.");
 
         RuleFor(x => x.Email)
@@ -38,11 +36,7 @@ public class CreateUsuarioRequestValidator : AbstractValidator<CreateUsuarioRequ
 
         RuleFor(x => x.Rol)
             .NotEmpty().WithMessage("El rol es obligatorio.")
-            .Must(rol => RolesPermitidos.Contains(rol.Trim(), StringComparer.OrdinalIgnoreCase))
+            .Must(r => Enum.TryParse<RolUsuario>(r, ignoreCase: true, out _))
             .WithMessage("El rol debe ser Admin, Empleado o Auditor.");
-
-        RuleFor(x => x.PuestoId)
-            .NotEqual(Guid.Empty).WithMessage("El puesto no es válido.")
-            .When(x => x.PuestoId.HasValue);
     }
 }

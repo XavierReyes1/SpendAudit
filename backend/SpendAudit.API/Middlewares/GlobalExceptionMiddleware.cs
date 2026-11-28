@@ -5,40 +5,64 @@ using SpendAudit.Application.Common.Exceptions;
 
 namespace SpendAudit.API.Middlewares;
 
-public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
+/// <summary>
+/// Punto único donde las excepciones de las capas internas se traducen a respuestas HTTP.
+/// Los servicios solo lanzan excepciones de negocio; aquí se decide el código y el cuerpo.
+///   400 → lista [{ propertyName, errorMessage }]  (FluentValidation, misma forma que la Clase 8)
+///   401/403/404/409 → { mensaje }
+///   500 → { mensaje } genérico (el detalle solo va al log)
+/// </summary>
+public class GlobalExceptionMiddleware
 {
+    private readonly RequestDelegate _next;
+    private readonly ILogger<GlobalExceptionMiddleware> _logger;
+
+    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
+
     public async Task InvokeAsync(HttpContext context)
     {
         try
         {
-            await next(context);
+            await _next(context);
+        }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // El cliente cerró la conexión: no hay a quién responder.
         }
         catch (Exception ex) when (!context.Response.HasStarted)
         {
-            await ResponderAsync(context, ex);
+            var (status, cuerpo) = Traducir(ex);
+
+            if (status >= 500)
+                _logger.LogError(ex, "Error no controlado en {Metodo} {Ruta}", context.Request.Method, context.Request.Path);
+
+            context.Response.Clear();
+            context.Response.StatusCode = status;
+            await context.Response.WriteAsJsonAsync(cuerpo);
         }
     }
 
-    private async Task ResponderAsync(HttpContext context, Exception ex)
+    private static (int Status, object Cuerpo) Traducir(Exception ex) => ex switch
     {
-        (int status, object cuerpo) respuesta = ex switch
-        {
-            ValidationException validacion => (StatusCodes.Status400BadRequest,
-                validacion.Errors.Select(error => new { error.PropertyName, error.ErrorMessage }).ToList()),
-            UnauthorizedException => (StatusCodes.Status401Unauthorized, new { mensaje = ex.Message }),
-            ForbiddenException => (StatusCodes.Status403Forbidden, new { mensaje = ex.Message }),
-            NotFoundException => (StatusCodes.Status404NotFound, new { mensaje = ex.Message }),
-            ConflictException => (StatusCodes.Status409Conflict, new { mensaje = ex.Message }),
-            DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } } =>
-                (StatusCodes.Status409Conflict, new { mensaje = "El registro ya existe." }),
-            _ => (StatusCodes.Status500InternalServerError, new { mensaje = "Error interno" })
-        };
+        ValidationException v => (StatusCodes.Status400BadRequest,
+            v.Errors.Select(e => new { propertyName = e.PropertyName, errorMessage = e.ErrorMessage }).ToList()),
 
-        if (respuesta.status == StatusCodes.Status500InternalServerError)
-            logger.LogError(ex, "Error no controlado en {Metodo} {Ruta}", context.Request.Method, context.Request.Path);
+        BadHttpRequestException b => (StatusCodes.Status400BadRequest,
+            new List<object> { new { propertyName = "", errorMessage = b.Message } }),
 
-        context.Response.Clear();
-        context.Response.StatusCode = respuesta.status;
-        await context.Response.WriteAsJsonAsync(respuesta.cuerpo, respuesta.cuerpo.GetType());
-    }
+        UnauthorizedException u => (StatusCodes.Status401Unauthorized, new { mensaje = u.Message }),
+        ForbiddenException f => (StatusCodes.Status403Forbidden, new { mensaje = f.Message }),
+        NotFoundException n => (StatusCodes.Status404NotFound, new { mensaje = n.Message }),
+        ConflictException c => (StatusCodes.Status409Conflict, new { mensaje = c.Message }),
+
+        // Red de seguridad ante carreras: dos peticiones simultáneas que violan un índice único.
+        DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } } =>
+            (StatusCodes.Status409Conflict, new { mensaje = "Ya existe un registro con esos datos." }),
+
+        _ => (StatusCodes.Status500InternalServerError, new { mensaje = "Error interno del servidor." })
+    };
 }
