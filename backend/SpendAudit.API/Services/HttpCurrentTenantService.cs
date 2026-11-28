@@ -1,19 +1,24 @@
-using System.Security.Claims;
 using SpendAudit.Application.Common.Models;
 using SpendAudit.Application.Interfaces;
 
 namespace SpendAudit.API.Services;
 
-public sealed class HttpCurrentTenantService(IHttpContextAccessor httpContextAccessor) : ICurrentTenantService
+/// <summary>
+/// Lee la identidad de los Claims del JWT ya validado. Es la ÚNICA fuente del EmpresaId:
+/// ningún endpoint lo acepta desde el body, la ruta o el query string.
+/// </summary>
+public class HttpCurrentTenantService : ICurrentTenantService
 {
-    private ClaimsPrincipal? User => httpContextAccessor.HttpContext?.User;
+    private readonly IHttpContextAccessor _http;
+    public HttpCurrentTenantService(IHttpContextAccessor http) => _http = http;
 
-    public Guid? EmpresaId => ParseGuid(User?.FindFirst(ClaimsNombres.EmpresaId)?.Value);
+    private System.Security.Claims.ClaimsPrincipal? Usuario =>
+        _http.HttpContext?.User is { Identity.IsAuthenticated: true } u ? u : null;
 
-    public Guid? UsuarioId => ParseGuid(User?.FindFirst(ClaimsNombres.UsuarioId)?.Value);
+    public Guid? EmpresaId => LeerGuid(ClaimsNombres.EmpresaId);
+    public Guid? UsuarioId => LeerGuid(ClaimsNombres.UsuarioId);
+    public string? Rol => Usuario?.FindFirst(ClaimsNombres.Rol)?.Value;
 
-    public string? Rol => User?.FindFirst(ClaimsNombres.Rol)?.Value;
-
-    private static Guid? ParseGuid(string? value) =>
-        Guid.TryParse(value, out var id) ? id : null;
+    private Guid? LeerGuid(string claim) =>
+        Guid.TryParse(Usuario?.FindFirst(claim)?.Value, out var id) ? id : null;
 }
